@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -119,9 +120,14 @@ func ReadConfiguration() (*Configuration, error) {
 	return &config, nil
 }
 
-// RunCommand runs a command, redirecting its output into 'log'.
+// RunCommand runs a command, echoes its commandline and stdout into 'log'.
 func RunCommand(workdir string, log io.Writer, args ...string) error {
 	fmt.Fprintf(log, " $ %s [%s]\n", strings.Join(args, " "), workdir)
+	return RunCommandSilent(workdir, log, args...)
+}
+
+// RunCommandSilent is like RunCommand, but does not echo the commandline.
+func RunCommandSilent(workdir string, log io.Writer, args ...string) error {
 	c := exec.Command(args[0], args[1:]...)
 	c.Stdout = log
 	c.Stderr = log
@@ -205,7 +211,7 @@ func abandonBranch(repo *github.Repository, datadir string, log io.Writer, local
 	return nil
 }
 
-func rebaseOnMaster(pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (string, error) {
+func rebaseAndReformatCode(pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (string, error) {
 	// TODO(hrapp): Only attempt this if the branch is marked as mergeable by GitHub
 	fmt.Fprintf(log, "=> Rebasing PR %d on %s/%s onto master.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
 	if err := checkoutBranch(repo, datadir, log, "master"); err != nil {
@@ -216,14 +222,23 @@ func rebaseOnMaster(pullRequest *github.PullRequest, repo *github.Repository, da
 	}
 	localBranch := fmt.Sprintf("pr_%d", pullRequest.GetNumber())
 	if err := checkoutRemoteBranch(repo, datadir, log, localBranch, pullRequest.Head); err != nil {
-		_ = abandonBranch(repo, datadir, log, localBranch)
+		return "", err
+	}
+	defer abandonBranch(repo, datadir, log, localBranch)
+
+	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "master"); err != nil {
 		return "", err
 	}
 
-	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "master"); err != nil {
-		_ = abandonBranch(repo, datadir, log, localBranch)
+	// Reformat the code base by running clang. This might change files on disk.
+	err := runClangFormat(path.Join(datadir, *repo.Name), log)
+	if err != nil {
 		return "", err
 	}
+	// We ignoring errors in commit, since if the clang-format run did not change
+	// anything, the commit will error.
+	_ = RunCommand(path.Join(datadir, *repo.Name), log, "git", "commit", "-am", "Ran clang-format.")
+
 	newSHA, err := getHeadSHA(repo, datadir)
 	if err != nil {
 		return "", err
@@ -231,7 +246,6 @@ func rebaseOnMaster(pullRequest *github.PullRequest, repo *github.Repository, da
 
 	err = RunCommand(path.Join(datadir, *repo.Name), log, "git", "push", "--force", *pullRequest.Head.Repo.Owner.Login,
 		fmt.Sprintf("HEAD:%s", *pullRequest.Head.Ref))
-	_ = abandonBranch(repo, datadir, log, localBranch)
 	return newSHA, err
 }
 
@@ -244,12 +258,13 @@ func postCommentToPr(ctx context.Context, client *github.Client, repo *github.Re
 }
 
 func handleWorkItem(ctx context.Context, state *PullRequestState, client *github.Client, pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (bool, error) {
-	newSHA, err := rebaseOnMaster(pullRequest, repo, datadir, log)
+	newSHA, err := rebaseAndReformatCode(pullRequest, repo, datadir, log)
 	if err != nil {
 		return true, err
 	}
-	// Rebase did something. Travis needs to rerun, so we cannot make progress
-	// now, but the work item is also not yet done.
+
+	// rebaseAndReformatCode did something. Travis needs to rerun, so we cannot
+	// make progress now, but the work item is also not yet done.
 	if newSHA != state.LastSHASeen {
 		state.LastSHASeen = newSHA
 		return false, nil
@@ -396,6 +411,29 @@ func ensureAllReposAreCloned(managedRepositories []string, datadir string) error
 		}
 	}
 	return nil
+}
+
+func runClangFormat(workdir string, logWriter io.Writer) error {
+	fmt.Fprintf(logWriter, "=> Running clang-format on all *.cc and *.h files [%s]\n", workdir)
+	return filepath.Walk(workdir, func(rootPath string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		ext := filepath.Ext(rootPath)
+		if ext == ".cc" || ext == ".h" {
+			relPath, err := filepath.Rel(workdir, rootPath)
+			if err != nil {
+				log.Panicf(
+					"Could not make %s relative to %s. This should be impossible in this context.",
+					rootPath, workdir)
+			}
+			err = RunCommandSilent(workdir, logWriter, "clang-format", "-i", "-style=Google", relPath)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 var RootCmd = &cobra.Command{
