@@ -1,10 +1,9 @@
 package main
 
 import (
-	"cloudrobotics.com/wally_the_cartographer/cmd"
+	"github.com/googlecartographer/infrastructure/wally_the_cartographer/cmd"
 )
 
 func main() {
 	cmd.Execute()
 }
-
