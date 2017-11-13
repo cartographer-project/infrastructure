@@ -36,13 +36,13 @@ type Configuration struct {
 	ManagedRepositories []string `json:"managed_repositories"`
 
 	// Github token for authentication.
-	GithubToken         string   `json:"github_token"`
+	GithubToken string `json:"github_token"`
 
 	// The slug of the team that this bot will accept comments from.
-	TeamSlug            string   `json:"team_slug"`
+	TeamSlug string `json:"team_slug"`
 
 	// Data directory that will contained cloned repos and state.json.
-	Datadir             string   `json:"datadir"`
+	Datadir string `json:"datadir"`
 }
 
 // PullRequestState contains the last seen state of a PR from the last run.
@@ -308,6 +308,9 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 		var logOutput bytes.Buffer
 		logWriter := io.MultiWriter(&logOutput, os.Stdout)
 		done, err := handleWorkItem(ctx, repositoryState.PullRequests[workItem.Pr], client, pullRequest, repo, datadir, logWriter)
+		if done {
+			repositoryState.WorkQueue = repositoryState.WorkQueue[1:]
+		}
 		if err != nil {
 			_ = postCommentToPr(ctx, client, repo, pullRequest.GetNumber(),
 				fmt.Sprintf("Error: %v\n\nLog:\n~~~\n%s\n~~~", err, logOutput.String()))
@@ -320,10 +323,9 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 			// Did some work, but is not done. We have to check again next run of the tool.
 			break
 		}
-		repositoryState.WorkQueue = repositoryState.WorkQueue[1:]
 	}
 
-	// Look for new comments on PullRequests..
+	// Look for new comments on PullRequests.
 	pullRequests, _, err := client.PullRequests.List(ctx, *repo.Owner.Login, *repo.Name, &github.PullRequestListOptions{})
 	if err != nil {
 		return err
@@ -379,6 +381,23 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 	return nil
 }
 
+func ensureAllReposAreCloned(managedRepositories []string, datadir string) error {
+	var logOutput bytes.Buffer
+	logWriter := io.MultiWriter(&logOutput, os.Stdout)
+	for _, repoName := range managedRepositories {
+		repo := GitHubRepositoryFromString(repoName)
+		p := path.Join(datadir, *repo.Name)
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			err := cloneRepository(repo, datadir, logWriter)
+			if err != nil {
+				fmt.Fprint(&logOutput, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 var RootCmd = &cobra.Command{
 	Use:   "wally_the_cartographer",
 	Short: "Auto merge bot for googlecartographer organization.",
@@ -390,21 +409,11 @@ var RootCmd = &cobra.Command{
 		}
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var logOutput bytes.Buffer
-		logWriter := io.MultiWriter(&logOutput, os.Stdout)
 		config, err := ReadConfiguration()
 		_ = os.Mkdir(config.Datadir, 0755)
 
-		for _, repoName := range config.ManagedRepositories {
-			repo := GitHubRepositoryFromString(repoName)
-			p := path.Join(config.Datadir, *repo.Name)
-			if _, err := os.Stat(p); os.IsNotExist(err) {
-				err := cloneRepository(repo, config.Datadir, logWriter)
-				if err != nil {
-					fmt.Fprint(&logOutput, err)
-					return err
-				}
-			}
+		if err := ensureAllReposAreCloned(config.ManagedRepositories, config.Datadir); err != nil {
+			return err
 		}
 
 		state, err := ReadState(config.Datadir)
