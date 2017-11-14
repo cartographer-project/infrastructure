@@ -372,14 +372,15 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 				continue
 			}
 
-			membership, _, err := client.Organizations.GetTeamMembership(ctx, teamID, *comment.User.Login)
-			if err != nil {
-				return err
-			}
-
-			if *membership.State != "active" {
+			membership, response, err := client.Organizations.GetTeamMembership(ctx, teamID, *comment.User.Login)
+			// If a user is not in the group, the API returns an error (not found) We have to investigate the status code
+			// to know.
+			if (err != nil && response.StatusCode == 404) || (err == nil && *membership.State != "active") {
 				log.Printf("User %s is not in our team. Ignoring merge request.", *comment.User.Login)
 				continue
+			}
+			if err != nil {
+				return err
 			}
 
 			repositoryState.WorkQueue = append(repositoryState.WorkQueue, WorkItem{Repo: repoName, Pr: prNum})
