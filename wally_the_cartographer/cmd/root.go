@@ -176,6 +176,7 @@ func forkAndCheckout(repo *github.Repository, datadir string, log io.Writer, loc
 }
 
 func checkoutRemoteBranch(repo *github.Repository, datadir string, log io.Writer, localBranch string, branch *github.PullRequestBranch) error {
+	fmt.Fprintf(log, " => Checking out %s/%s as local branch %s.\n", *branch.Repo.Owner.Login, *branch.Ref, localBranch)
 	remote := fmt.Sprintf("git@github.com:%s/%s.git", *branch.Repo.Owner.Login, *branch.Repo.Name)
 	_ = RunCommand(path.Join(datadir, *repo.Name), log, "git", "remote", "add", *branch.Repo.Owner.Login, remote)
 	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "fetch", *branch.Repo.Owner.Login); err != nil {
@@ -201,7 +202,7 @@ func getHeadSHA(repo *github.Repository, datadir string) (string, error) {
 }
 
 func abandonBranch(repo *github.Repository, datadir string, log io.Writer, localBranch string) error {
-	fmt.Fprintf(log, "=> Abandoning branch %s.\n", localBranch)
+	fmt.Fprintf(log, " => Abandoning branch %s.\n", localBranch)
 	if err := checkoutBranch(repo, datadir, log, "master"); err != nil {
 		return err
 	}
@@ -211,42 +212,19 @@ func abandonBranch(repo *github.Repository, datadir string, log io.Writer, local
 	return nil
 }
 
-func rebaseAndReformatCode(pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (string, error) {
-	// TODO(hrapp): Only attempt this if the branch is marked as mergeable by GitHub
-	fmt.Fprintf(log, "=> Rebasing PR %d on %s/%s onto master.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+func switchToAndUpdateMaster(repo *github.Repository, datadir string, log io.Writer) error {
 	if err := checkoutBranch(repo, datadir, log, "master"); err != nil {
-		return "", err
+		return err
 	}
 	if err := pull(repo, datadir, log); err != nil {
-		return "", err
+		return err
 	}
-	localBranch := fmt.Sprintf("pr_%d", pullRequest.GetNumber())
-	if err := checkoutRemoteBranch(repo, datadir, log, localBranch, pullRequest.Head); err != nil {
-		return "", err
-	}
-	defer abandonBranch(repo, datadir, log, localBranch)
+	return nil
+}
 
-	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "master"); err != nil {
-		return "", err
-	}
-
-	// Reformat the code base by running clang. This might change files on disk.
-	err := runClangFormat(path.Join(datadir, *repo.Name), log)
-	if err != nil {
-		return "", err
-	}
-	// We ignoring errors in commit, since if the clang-format run did not change
-	// anything, the commit will error.
-	_ = RunCommand(path.Join(datadir, *repo.Name), log, "git", "commit", "-am", "Ran clang-format.")
-
-	newSHA, err := getHeadSHA(repo, datadir)
-	if err != nil {
-		return "", err
-	}
-
-	err = RunCommand(path.Join(datadir, *repo.Name), log, "git", "push", "--force", *pullRequest.Head.Repo.Owner.Login,
-		fmt.Sprintf("HEAD:%s", *pullRequest.Head.Ref))
-	return newSHA, err
+func rebaseOnMaster(repo *github.Repository, datadir string, log io.Writer) error {
+	fmt.Fprint(log, " => rebase on master.\n")
+	return RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "master")
 }
 
 func postCommentToPr(ctx context.Context, client *github.Client, repo *github.Repository, pr int, comment string) error {
@@ -258,7 +236,31 @@ func postCommentToPr(ctx context.Context, client *github.Client, repo *github.Re
 }
 
 func handleWorkItem(ctx context.Context, state *PullRequestState, client *github.Client, pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (bool, error) {
-	newSHA, err := rebaseAndReformatCode(pullRequest, repo, datadir, log)
+	fmt.Fprintf(log, "=> handle work item: PR %d on %s/%s.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+	if err := switchToAndUpdateMaster(repo, datadir, log); err != nil {
+		return true, err
+	}
+	localBranch := fmt.Sprintf("pr_%d", pullRequest.GetNumber())
+	if err := checkoutRemoteBranch(repo, datadir, log, localBranch, pullRequest.Head); err != nil {
+		return true, err
+	}
+	defer abandonBranch(repo, datadir, log, localBranch)
+
+	// TODO(hrapp): Only attempt this if the branch is marked as mergeable by GitHub
+	if err := rebaseOnMaster(repo, datadir, log); err != nil {
+		return true, err
+	}
+
+	if err := runClangFormat(repo, datadir, log); err != nil {
+		return true, err
+	}
+
+	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "push", "--force", *pullRequest.Head.Repo.Owner.Login,
+		fmt.Sprintf("HEAD:%s", *pullRequest.Head.Ref)); err != nil {
+		return true, err
+	}
+
+	newSHA, err := getHeadSHA(repo, datadir)
 	if err != nil {
 		return true, err
 	}
@@ -414,9 +416,11 @@ func ensureAllReposAreCloned(managedRepositories []string, datadir string) error
 	return nil
 }
 
-func runClangFormat(workdir string, logWriter io.Writer) error {
-	fmt.Fprintf(logWriter, "=> Running clang-format on all *.cc and *.h files [%s]\n", workdir)
-	return filepath.Walk(workdir, func(rootPath string, info os.FileInfo, err error) error {
+// runClangFormat reformats the code base by running clang-format. This might change files on disk.
+func runClangFormat(repo *github.Repository, datadir string, logWriter io.Writer) error {
+	fmt.Fprint(logWriter, " => Running clang-format on all *.cc and *.h files\n")
+	workdir := path.Join(datadir, *repo.Name)
+	err := filepath.Walk(workdir, func(rootPath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -435,6 +439,13 @@ func runClangFormat(workdir string, logWriter io.Writer) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// We ignoring errors in commit, since if the clang-format run did not change
+	// anything, the commit will error.
+	_ = RunCommand(workdir, logWriter, "git", "commit", "-am", "Ran clang-format.")
+	return nil
 }
 
 var RootCmd = &cobra.Command{
