@@ -329,6 +329,54 @@ func keepPRPristine(pullRequest *github.PullRequest, repo *github.Repository, da
 	return newSHA, nil
 }
 
+func checkNewCommentsForCommands(ctx context.Context, repositoryState *RepositoryState, prState *PullRequestState,
+	client *github.Client, userName string, teamID int, repo *github.Repository, prNum int) error {
+	comments, _, err := client.Issues.ListComments(ctx, *repo.Owner.Login, *repo.Name, prNum, &github.IssueListCommentsOptions{})
+	if err != nil {
+		return err
+	}
+
+	lastNumComments := prState.NumComments
+	if lastNumComments > len(comments) {
+		lastNumComments = len(comments)
+	}
+
+	mergeRegex, err := regexp.Compile("(?m:^@" + userName + `\s*merge$)`)
+	if err != nil {
+		log.Fatalf("Could not compile regex: %v", err)
+	}
+
+	for _, comment := range comments[lastNumComments:] {
+		if len(mergeRegex.FindString(*comment.Body)) == 0 {
+			continue
+		}
+
+		membership, response, err := client.Organizations.GetTeamMembership(ctx, teamID, *comment.User.Login)
+		// If a user is not in the group, the API returns an error (not found) We have to investigate the status code
+		// to know.
+		if (err != nil && response.StatusCode == 404) || (err == nil && *membership.State != "active") {
+			log.Printf("User %s is not in our team. Ignoring merge request.", *comment.User.Login)
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		repositoryState.WorkQueue = append(repositoryState.WorkQueue, WorkItem{
+			Repo: fmt.Sprintf("%s/%s", *repo.Owner.Login, *repo.Name),
+			Pr:   prNum,
+		})
+		_ = postCommentToPr(ctx, client, repo, prNum,
+			fmt.Sprintf("Merge requested by authorized user %s. Merge queue now has a length of %d.",
+				*comment.User.Login,
+				len(repositoryState.WorkQueue)))
+		// We ignore all further comments on this PR and will never look at them.
+		break
+	}
+	prState.NumComments = len(comments)
+	return nil
+}
+
 func handleRepo(ctx context.Context, client *github.Client, userName string, teamID int, repoName string, datadir string, state *State) error {
 	repo := GitHubRepositoryFromString(repoName)
 	if _, ok := state.Repositories[repoName]; !ok {
@@ -375,18 +423,13 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 		return err
 	}
 
-	mergeRegex, err := regexp.Compile("(?m:^@" + userName + `\s*merge$)`)
-	if err != nil {
-		log.Fatalf("Could not compile regex: %v", err)
-	}
-
 	for _, pullRequest := range pullRequests {
 		log.Printf("=> handle pull request: PR %d on %s/%s.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
 		prNum := pullRequest.GetNumber()
-		p := repositoryState.PullRequests[prNum]
-		if p == nil {
-			p = &PullRequestState{}
-			repositoryState.PullRequests[prNum] = p
+		prState := repositoryState.PullRequests[prNum]
+		if prState == nil {
+			prState = &PullRequestState{}
+			repositoryState.PullRequests[prNum] = prState
 		}
 
 		newSHA, err := keepPRPristine(pullRequest, repo, datadir, os.Stdout)
@@ -394,46 +437,15 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 			return err
 		}
 
-		if newSHA != p.LastSHASeen {
-			p.LastSHASeen = newSHA
+		if newSHA != prState.LastSHASeen {
+			prState.LastSHASeen = newSHA
 			continue
 		}
+		prState.LastSHASeen = newSHA
 
-		comments, _, err := client.Issues.ListComments(ctx, *repo.Owner.Login, *repo.Name, prNum, &github.IssueListCommentsOptions{})
-		if err != nil {
+		if err := checkNewCommentsForCommands(ctx, repositoryState, prState, client, userName, teamID, repo, prNum); err != nil {
 			return err
 		}
-
-		lastNumComments := p.NumComments
-		if lastNumComments > len(comments) {
-			lastNumComments = len(comments)
-		}
-		for _, comment := range comments[lastNumComments:] {
-			if len(mergeRegex.FindString(*comment.Body)) == 0 {
-				continue
-			}
-
-			membership, response, err := client.Organizations.GetTeamMembership(ctx, teamID, *comment.User.Login)
-			// If a user is not in the group, the API returns an error (not found) We have to investigate the status code
-			// to know.
-			if (err != nil && response.StatusCode == 404) || (err == nil && *membership.State != "active") {
-				log.Printf("User %s is not in our team. Ignoring merge request.", *comment.User.Login)
-				continue
-			}
-			if err != nil {
-				return err
-			}
-
-			repositoryState.WorkQueue = append(repositoryState.WorkQueue, WorkItem{Repo: repoName, Pr: prNum})
-			_ = postCommentToPr(ctx, client, repo, prNum,
-				fmt.Sprintf("Merge requested by authorized user %s. Merge queue now has a length of %d.",
-					*comment.User.Login,
-					len(repositoryState.WorkQueue)))
-			// We ignore all further comments on this PR and will never look at them.
-			break
-		}
-		p.NumComments = len(comments)
-		p.LastSHASeen = *pullRequest.Head.SHA
 	}
 	return nil
 }
