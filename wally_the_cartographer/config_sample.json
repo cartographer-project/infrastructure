@@ -1,0 +1,15 @@
+{
+   "managed_repositories": [
+      "googlecartographer/cartographer",
+      "googlecartographer/cartographer_fetch",
+      "googlecartographer/cartographer_ros",
+      "googlecartographer/cartographer_toyota_hsr",
+      "googlecartographer/cartographer_turtlebot",
+      "googlecartographer/point_cloud_viewer",
+      "googlecartographer/infrastructure"
+   ],
+   "team_slug": "googlecartographer/cartographer-ninja",
+   "github_token": "<enter github token here>",
+   "datadir": "data"
+}
+
