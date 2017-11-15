@@ -152,7 +152,7 @@ func cloneRepository(repo *github.Repository, datadir string, log io.Writer) err
 }
 
 func checkoutBranch(repo *github.Repository, datadir string, log io.Writer, localBranch string) error {
-	fmt.Fprintf(log, "=> Switching to branch %s.\n", localBranch)
+	fmt.Fprintf(log, " => Switching to branch %s.\n", localBranch)
 	_ = RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "--abort")
 	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "checkout", "-f"); err != nil {
 		return err
@@ -265,7 +265,7 @@ func handleWorkItem(ctx context.Context, state *PullRequestState, client *github
 		return true, err
 	}
 
-	// rebaseAndReformatCode did something. Travis needs to rerun, so we cannot
+	// We changed the HEAD SHA. Travis needs to rerun, so we cannot
 	// make progress now, but the work item is also not yet done.
 	if newSHA != state.LastSHASeen {
 		state.LastSHASeen = newSHA
@@ -300,6 +300,33 @@ func handleWorkItem(ctx context.Context, state *PullRequestState, client *github
 		return true, err
 	}
 	return true, nil
+}
+
+func keepPRPristine(pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (string, error) {
+	if err := switchToAndUpdateMaster(repo, datadir, log); err != nil {
+		return "", err
+	}
+	localBranch := fmt.Sprintf("pr_%d", pullRequest.GetNumber())
+	if err := checkoutRemoteBranch(repo, datadir, log, localBranch, pullRequest.Head); err != nil {
+		return "", err
+	}
+	defer abandonBranch(repo, datadir, log, localBranch)
+
+	if err := runClangFormat(repo, datadir, log); err != nil {
+		return "", err
+	}
+
+	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "push", "--force", *pullRequest.Head.Repo.Owner.Login,
+		fmt.Sprintf("HEAD:%s", *pullRequest.Head.Ref)); err != nil {
+		return "", err
+	}
+
+	newSHA, err := getHeadSHA(repo, datadir)
+	if err != nil {
+		return "", err
+	}
+
+	return newSHA, nil
 }
 
 func handleRepo(ctx context.Context, client *github.Client, userName string, teamID int, repoName string, datadir string, state *State) error {
@@ -354,12 +381,24 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 	}
 
 	for _, pullRequest := range pullRequests {
+		log.Printf("=> handle pull request: PR %d on %s/%s.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
 		prNum := pullRequest.GetNumber()
 		p := repositoryState.PullRequests[prNum]
 		if p == nil {
 			p = &PullRequestState{}
 			repositoryState.PullRequests[prNum] = p
 		}
+
+		newSHA, err := keepPRPristine(pullRequest, repo, datadir, os.Stdout)
+		if err != nil {
+			return err
+		}
+
+		if newSHA != p.LastSHASeen {
+			p.LastSHASeen = newSHA
+			continue
+		}
+
 		comments, _, err := client.Issues.ListComments(ctx, *repo.Owner.Login, *repo.Name, prNum, &github.IssueListCommentsOptions{})
 		if err != nil {
 			return err
