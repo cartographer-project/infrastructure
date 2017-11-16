@@ -153,8 +153,7 @@ func cloneRepository(repo *github.Repository, datadir string, log io.Writer) err
 
 func checkoutBranch(repo *github.Repository, datadir string, log io.Writer, localBranch string) error {
 	fmt.Fprintf(log, " => Switching to branch %s.\n", localBranch)
-	_ = RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "--abort")
-	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "checkout", "-f"); err != nil {
+	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "reset", "--hard", "HEAD"); err != nil {
 		return err
 	}
 	if err := RunCommand(path.Join(datadir, *repo.Name), log, "git", "clean", "-fd"); err != nil {
@@ -222,9 +221,9 @@ func switchToAndUpdateMaster(repo *github.Repository, datadir string, log io.Wri
 	return nil
 }
 
-func rebaseOnMaster(repo *github.Repository, datadir string, log io.Writer) error {
-	fmt.Fprint(log, " => rebase on master.\n")
-	return RunCommand(path.Join(datadir, *repo.Name), log, "git", "rebase", "master")
+func mergeMaster(repo *github.Repository, datadir string, log io.Writer) error {
+	fmt.Fprint(log, " => merge master.\n")
+	return RunCommand(path.Join(datadir, *repo.Name), log, "git", "merge", "master")
 }
 
 func postCommentToPr(ctx context.Context, client *github.Client, repo *github.Repository, pr int, comment string) error {
@@ -247,7 +246,7 @@ func handleWorkItem(ctx context.Context, state *PullRequestState, client *github
 	defer abandonBranch(repo, datadir, log, localBranch)
 
 	// TODO(hrapp): Only attempt this if the branch is marked as mergeable by GitHub
-	if err := rebaseOnMaster(repo, datadir, log); err != nil {
+	if err := mergeMaster(repo, datadir, log); err != nil {
 		return true, err
 	}
 
