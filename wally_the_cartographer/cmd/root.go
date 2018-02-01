@@ -329,7 +329,7 @@ func keepPRPristine(pullRequest *github.PullRequest, repo *github.Repository, da
 }
 
 func checkNewCommentsForCommands(ctx context.Context, repositoryState *RepositoryState, prState *PullRequestState,
-	client *github.Client, userName string, teamID int, repo *github.Repository, prNum int) error {
+	client *github.Client, userName string, teamID int64, repo *github.Repository, prNum int) error {
 	comments, _, err := client.Issues.ListComments(ctx, *repo.Owner.Login, *repo.Name, prNum, &github.IssueListCommentsOptions{})
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func checkNewCommentsForCommands(ctx context.Context, repositoryState *Repositor
 	return nil
 }
 
-func handleRepo(ctx context.Context, client *github.Client, userName string, teamID int, repoName string, datadir string, state *State) error {
+func handleRepo(ctx context.Context, client *github.Client, userName string, teamID int64, repoName string, datadir string, state *State) error {
 	repo := GitHubRepositoryFromString(repoName)
 	if _, ok := state.Repositories[repoName]; !ok {
 		state.Repositories[repoName] = &RepositoryState{
@@ -539,7 +539,7 @@ var RootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		teamID := 0
+		teamID := int64(0)
 		for _, team := range teams {
 			if *team.Slug == teamParts[1] {
 				teamID = *team.ID
