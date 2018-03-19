@@ -1,5 +1,6 @@
 {
    "managed_repositories": [
+      "googlecartographer/async_grpc",
       "googlecartographer/cartographer",
       "googlecartographer/cartographer_fetch",
       "googlecartographer/cartographer_ros",
