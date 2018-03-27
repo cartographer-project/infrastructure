@@ -236,6 +236,10 @@ func postCommentToPr(ctx context.Context, client *github.Client, repo *github.Re
 
 func handleWorkItem(ctx context.Context, state *PullRequestState, client *github.Client, pullRequest *github.PullRequest, repo *github.Repository, datadir string, log io.Writer) (bool, error) {
 	fmt.Fprintf(log, "=> handle work item: PR %d on %s/%s.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+	if pullRequest.Head.Repo == nil {
+		fmt.Fprintf(log, "Warning: Ignored PR %d on %s/%s because it has no upstream repo.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+		return true, nil
+	}
 	if err := switchToAndUpdateMaster(repo, datadir, log); err != nil {
 		return true, err
 	}
@@ -424,6 +428,10 @@ func handleRepo(ctx context.Context, client *github.Client, userName string, tea
 
 	for _, pullRequest := range pullRequests {
 		log.Printf("=> handle pull request: PR %d on %s/%s.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+		if pullRequest.Head.Repo == nil {
+			log.Printf("Warning: Ignored PR %d on %s/%s because it has no upstream repo.\n", pullRequest.GetNumber(), *repo.Owner.Login, *repo.Name)
+			continue
+		}
 		prNum := pullRequest.GetNumber()
 		prState := repositoryState.PullRequests[prNum]
 		if prState == nil {
