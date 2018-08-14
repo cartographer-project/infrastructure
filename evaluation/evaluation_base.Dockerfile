@@ -75,10 +75,10 @@ RUN sed -i -e 's/ö/oe/g' /opt/ros/${ROS_DISTRO}/share/roslisp/manifest.xml
 RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install_debs.sh && rm -rf /var/lib/apt/lists/*
 
 # Install proto3, cartographer_ros_msgs and ceres-solver.
-RUN $CARTO_WORKSPACE/cartographer/scripts/install_proto3.sh &&
-    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros_msgs &&
-    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg ceres-solver &&
-    rm -rf $HOME/protobuf &&
+RUN $CARTO_WORKSPACE/cartographer/scripts/install_proto3.sh && \
+    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros_msgs && \
+    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg ceres-solver && \
+    rm -rf $HOME/protobuf && \
     rm -rf $HOME/catkin_ws
 
 # Reclaim ownership.

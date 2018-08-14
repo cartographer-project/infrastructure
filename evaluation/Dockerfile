@@ -48,9 +48,9 @@ ENV CARTO_WORKSPACE $HOME/catkin_ws/src
 RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install_debs.sh && rm -rf /var/lib/apt/lists/*
 
 # Build and install.
-RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros_msgs &&
-    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer &&
-    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros &&
+RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros_msgs && \
+    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer && \
+    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros && \
     $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_rviz
 
 # Copy the ros_entrypoint.sh
