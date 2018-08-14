@@ -33,21 +33,25 @@ class BigQueryHelper(object):
     """rows will should be a list of dictionaries (one per row).
 
     During insertion, the dictionary keys will be used to find the
-    corresponding field of the schema.
+    corresponding field of the schema. Insertions will be chunked in sizes of
+    maximum 1000 rows per chunk.
     """
     table_ref = self._dataset.table(table_name)
+    chunk_size = 1000
     try:
       table = self._client.get_table(table_ref)
-      errors = self._client.insert_rows(table, rows)
-      if errors:
-        for e in errors:
-          logging.error('Failure when inserting row: %s', str(e))
-      else:
-        logging.info('Successfully inserted %d rows into %s', len(rows),
-                     table_name)
+      for i in range(0, len(rows), chunk_size):
+        self._insert_rows(table, rows[i:i + chunk_size])
+
     except ValueError as e:
       logging.error('Could not insert into requested table %s. Error: %s',
                     table_name, e)
+
+  def _insert_rows(self, table, rows):
+    errors = self._client.insert_rows(table, rows)
+    if errors:
+      for e in errors:
+        logging.error('Failure when inserting rows: %s', str(e))
 
 
 def store_in_bigquery(scratch_dir, experiment_id, job_uuid, bag_file,
