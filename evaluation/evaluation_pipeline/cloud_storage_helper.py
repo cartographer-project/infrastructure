@@ -27,6 +27,7 @@ import os
 def download_from_cloud_storage(secret_json, bucket_name, file_path,
                                 destination_path):
   """Downloads the the file from cloud storage to local file system.
+
   """
   client = storage.Client.from_service_account_json(secret_json)
   try:
@@ -66,6 +67,18 @@ def path_to_blob(path):
   bucket = path_without_prefix[:bucket_end]
   path_in_bucket = path_without_prefix[bucket_end + 1:]
   return bucket, path_in_bucket
+
+
+def download_from_cloud_storage_url(url, destination, secret_json):
+  bucket, path = path_to_blob(url)
+  if bucket == None:
+    logging.error('Invalid dataset path "%s"', url)
+    return False
+  if not download_from_cloud_storage(secret_json, bucket, path, destination):
+    logging.error('Could not download dataset: %s', url)
+    return False
+  logging.info('Successfully downloaded dataset %s to %s', url, destination)
+  return True
 
 
 def upload_artifacts(artifacts_directory,
