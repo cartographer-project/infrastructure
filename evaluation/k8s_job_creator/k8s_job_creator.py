@@ -109,8 +109,8 @@ class KubernetesJobCreator(object):
       jobs_to_monitor[job.uuid] = job
     return jobs_to_monitor
 
-  def create_jobs(self, evaluation_jobs, parameter_sweep_file,
-                  base_config_file):
+  def create_jobs_with_sweep(self, evaluation_jobs, parameter_sweep_file,
+                             base_config_file):
     sweep_idx = 0
     experiment_id = evaluation_jobs[0].experiment_id
     base_config_lines = cfg_gen.load_base_config_file(base_config_file)
@@ -261,9 +261,9 @@ def main(argv):
       logging.error("""You have to specify a base configuration and a
           service_account_secret for parameter sweeps.""")
       return
-    jobs_to_monitor = creator.create_jobs(evaluation_jobs,
-                                          FLAGS.parameter_sweep_file,
-                                          FLAGS.parameter_sweep_base_config)
+    jobs_to_monitor = creator.create_jobs_with_sweep(
+        evaluation_jobs, FLAGS.parameter_sweep_file,
+        FLAGS.parameter_sweep_base_config)
   else:
     jobs_to_monitor = creator.create_jobs(evaluation_jobs)
 

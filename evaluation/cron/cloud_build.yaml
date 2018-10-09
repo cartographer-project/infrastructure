@@ -1,0 +1,10 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'eu.gcr.io/robco-klose/eval_nightly', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'eu.gcr.io/robco-klose/eval_nightly']
+options:
+  machineType: 'N1_HIGHCPU_32'
+timeout: 1800s
+images:
+- 'eu.gcr.io/robco-klose/eval_nightly'

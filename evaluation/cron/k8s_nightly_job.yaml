@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: evaluation-creation-debug
+spec:
+  template:
+    spec:
+      volumes:
+      - name: evaluation-secret
+        secret:
+          secretName: evaluation-secret
+      containers:
+      - image: eu.gcr.io/robco-klose/nightly_cron:latest
+        name: nightly-evaluation
+        volumeMounts:
+        - name: evaluation-secret
+          mountPath: /var/secrets/evaluation
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/evaluation/key.json
+      restartPolicy: Never
+  backoffLimit: 0
