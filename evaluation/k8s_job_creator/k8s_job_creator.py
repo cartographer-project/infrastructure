@@ -25,7 +25,7 @@ from absl import app
 from absl import logging
 from absl import flags
 
-from kubernetes import client, config, watch
+from kubernetes import client, config
 
 import k8s_helper
 import configuration_generator as cfg_gen
@@ -267,30 +267,9 @@ def main(argv):
   else:
     jobs_to_monitor = creator.create_jobs(evaluation_jobs)
 
-  # Create a watch on all pods of the cluster and find the ones matching the
-  # newly created jobs.
-  v1_api = creator.k8s_core_api
-  w = watch.Watch()
-  num_succeeded = 0
-  num_failed = 0
-  waiting_for_finish = len(jobs_to_monitor)
-  for e in w.stream(v1_api.list_namespaced_pod, "default"):
-    pod = e["object"]
-    event_type = e["type"]
-    if pod.spec.containers:
-      for c in pod.spec.containers:
-        if c.name in jobs_to_monitor:
-          logging.info("Job %s signalled event %s, POD Phase: %s", c.name,
-                       event_type, pod.status.phase)
-          if pod.status.phase == "Succeeded":
-            num_succeeded += 1
-            waiting_for_finish -= 1
-          elif pod.status.phase == "Failed":
-            num_failed += 1
-            waiting_for_finish -= 1
-          logging.info("Waiting for %d jobs to finish", waiting_for_finish)
-    if waiting_for_finish <= 0:
-      break
+  succeeded, failed = k8s_helper.monitor_jobs(creator.k8s_core_api,
+                                              jobs_to_monitor, "default")
+  logging.info("All jobs finished: %d succeeded, %d failed", succeeded, failed)
 
 
 if __name__ == "__main__":

@@ -55,8 +55,36 @@ def delete_failed_jobs(batch_api, namespace="default"):
         try:
           logging.info("Deleting job %s", j.metadata.name)
           batch_api.delete_namespaced_job(
-              j.metadata.name,
-              namespace,
+              j.metadata.name, namespace,
               client.V1DeleteOptions(propagation_policy="Foreground"))
         except client.rest.ApiException as e:
           logging.error("Cannot delete job: %s", j.metadata.name)
+
+
+def monitor_jobs(v1_api, jobs_to_monitor, namespace="default"):
+  """Creates a watch to monitor all jobs in `jobs_to_monitor`.
+
+  The function will "block" until all jobs are completed. And report back the
+  number of succeeded and failed pods.
+  """
+  w = watch.Watch()
+  num_succeeded = 0
+  num_failed = 0
+  for e in w.stream(v1_api.list_namespaced_pod, namespace):
+    pod = e["object"]
+    event_type = e["type"]
+    if pod.spec.containers:
+      for c in pod.spec.containers:
+        if c.name in jobs_to_monitor:
+          logging.info("Job %s signalled event %s, POD Phase: %s", c.name,
+                       event_type, pod.status.phase)
+          if pod.status.phase == "Succeeded":
+            num_succeeded += 1
+            jobs_to_monitor.pop(c.name)
+          elif pod.status.phase == "Failed":
+            num_failed += 1
+            jobs_to_monitor.pop(c.name)
+          logging.info("Waiting for %d jobs to finish", len(jobs_to_monitor))
+    if len(jobs_to_monitor) <= 0:
+      break
+  return num_succeeded, num_failed
