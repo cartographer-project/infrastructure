@@ -42,12 +42,12 @@ flags.DEFINE_string("docker_registry", "eu.gcr.io/robco-klose",
                     "Url of docker registry to pull the docker image from.")
 flags.DEFINE_string(
     "docker_image", None,
-    "Name or id of the docker image which shall be used as container image for these jobs."
-)
+    """Name or id of the docker image which shall be used as container image for
+    these jobs.""")
 flags.DEFINE_string(
     "experiment_id", None,
-    "Identifier for this group of evaluations. If not set, a uuid will be generated."
-)
+    """Identifier for this group of evaluations. If not set, a uuid will be
+    generated.""")
 flags.DEFINE_list("tags", None, "Tags to add to this experiment")
 flags.DEFINE_bool(
     "running_in_cluster", False,
@@ -63,6 +63,11 @@ flags.DEFINE_string(
     "parameter_sweep_base_config", None,
     """If running with parameter sweeping, use this configuration Lua file to
     base the generated config file on.""")
+flags.DEFINE_string(
+    "old_job_deletion_threshold", None,
+    """If set, the value of this flag will be interpreted as a threshold in days
+    and all jobs older than this thresholds will be deleted at the end of the
+    script.""")
 
 
 class EvaluationJob(object):
@@ -270,6 +275,10 @@ def main(argv):
   succeeded, failed = k8s_helper.monitor_jobs(creator.k8s_core_api,
                                               jobs_to_monitor, "default")
   logging.info("All jobs finished: %d succeeded, %d failed", succeeded, failed)
+
+  if FLAGS.old_job_deletion_threshold:
+    k8s_helper.garbage_collect_jobs(creator.k8s_batch_api, "default",
+                                    int(FLAGS.old_job_deletion_threshold))
 
 
 if __name__ == "__main__":

@@ -19,7 +19,9 @@ python client API.
 
 from __future__ import absolute_import
 
+import pytz
 from absl import logging
+from datetime import datetime, timedelta
 from kubernetes import client, config, watch
 
 
@@ -59,6 +61,29 @@ def delete_failed_jobs(batch_api, namespace="default"):
               client.V1DeleteOptions(propagation_policy="Foreground"))
         except client.rest.ApiException as e:
           logging.error("Cannot delete job: %s", j.metadata.name)
+
+
+def garbage_collect_jobs(batch_api, namespace, min_age_in_days):
+  """ Deletes all completed kubernetes jobs above a certain age.
+
+  Will check all existing k8s jobs in `namespace` and delete them if their age
+  in days is greater or equal to `min_age_in_days`.
+  """
+  all_jobs = list_jobs(batch_api, namespace)
+  now = datetime.now(pytz.utc)
+  for job in all_jobs.items:
+    status = job.status
+    if status.completion_time:
+      delta_t = now - status.completion_time
+      if delta_t.days >= min_age_in_days:
+        try:
+          logging.info("Deleting job %s, completed %d days ago.",
+                       job.metadata.name, delta_t.days)
+          batch_api.delete_namespaced_job(
+              job.metadata.name, namespace,
+              client.V1DeleteOptions(propagation_policy="Foreground"))
+        except client.rest.ApiException as e:
+          logging.error("Cannot delete job: %s", job.metadata.name)
 
 
 def monitor_jobs(v1_api, jobs_to_monitor, namespace="default"):

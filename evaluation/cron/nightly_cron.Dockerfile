@@ -37,9 +37,11 @@ RUN curl https://sdk.cloud.google.com | bash && \
     gcloud components install bq && \
     gcloud components install kubectl && \
     pip install --upgrade absl-py && \
+    pip install --upgrade pytz && \
     pip install --upgrade kubernetes && \
     pip install --upgrade google-cloud-bigquery && \
     pip install --upgrade google-cloud-storage
+
 RUN gcloud config set project robco-klose
 
 WORKDIR /
