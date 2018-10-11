@@ -73,12 +73,13 @@ flags.DEFINE_string(
 class EvaluationJob(object):
   """All information required to create a single evaluation job."""
 
-  def __init__(self, docker_img, experiment_id, tags, bag_file,
+  def __init__(self, docker_img, experiment_id, tags, bag_file, launch_pkg,
                offline_launch_file, assets_launch_file, ground_truth_file):
     self.docker_image = docker_img
     self.experiment_id = experiment_id
     self.tags = tags
     self.bag_file = bag_file
+    self.launch_pkg = launch_pkg
     self.offline_launch_file = offline_launch_file
     self.assets_launch_file = assets_launch_file
     self.ground_truth_file = ground_truth_file
@@ -198,7 +199,8 @@ class KubernetesJobCreator(object):
 
   def _create_job_args(self, evaluation_job):
     eval_arguments = [
-        "--dataset_path", evaluation_job.bag_file, "--launch_file",
+        "--dataset_path", evaluation_job.bag_file, "--launch_file_pkg",
+        evaluation_job.launch_pkg, "--launch_file",
         evaluation_job.offline_launch_file, "--assets_launch_file",
         evaluation_job.assets_launch_file, "--uuid", evaluation_job.uuid,
         "--experiment_id", evaluation_job.experiment_id, "--creation_date",
@@ -238,6 +240,7 @@ def csv_to_evaluation_jobs(csv_filename, docker_img, experiment_id, tags):
     reader = csv.DictReader(filter(lambda row: row[0] != "#", f))
     eval_jobs = [
         EvaluationJob(docker_img, experiment_id, tags, row["dataset"].strip(),
+                      row["launch_pkg"].strip(),
                       row["offline_launch_file"].strip(),
                       row["assets_writer_launch_file"].strip(),
                       row["ground_truth_file"].strip()) for row in reader

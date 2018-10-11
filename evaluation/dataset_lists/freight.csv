@@ -1,0 +1,3 @@
+dataset,launch_pkg,offline_launch_file,assets_writer_launch_file,ground_truth_file
+gs://cartographer-public-data/bags/fetch/cartographer_freight_demo_2.bag,cartographer_fetch,offline_freight_2d.launch,assets_writer_freight.launch,gs://cartographer-evaluation-artifacts/groundtruth/cartographer_freight_demo_2.bag.ground_truth_relations.pbstream
+gs://cartographer-public-data/bags/fetch/cartographer_freight_demo.bag,cartographer_fetch,offline_freight_2d.launch,assets_writer_freight.launch,gs://cartographer-evaluation-artifacts/groundtruth/cartographer_freight_demo.bag.ground_truth_relations.pbstream

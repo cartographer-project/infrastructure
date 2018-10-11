@@ -95,14 +95,14 @@ def copy_logs(folder_in_ros_log, destination):
 
 # Generate assets for the pose_graph + bag_file, using the "device" specific
 # launch file.
-def create_assets(launch_file, bagfile, pose_graph_file):
+def create_assets(launch_file_pkg, launch_file, bagfile, pose_graph_file):
   logging.info('Generating assets for bagfile %s and PoseGraph %s', bagfile,
                pose_graph_file)
   launch_args = [
       'bag_filenames:={}'.format(bagfile),
       'pose_graph_filename:={}'.format(pose_graph_file),
   ]
-  return roslaunch_helper('cartographer_ros', launch_file, launch_args,
+  return roslaunch_helper(launch_file_pkg, launch_file, launch_args,
                           'assets_writer')
 
 

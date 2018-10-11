@@ -51,6 +51,7 @@ RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install_debs.sh && rm -rf /var/lib
 RUN $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros_msgs && \
     $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer && \
     $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_ros && \
+    $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_fetch && \
     $CARTO_WORKSPACE/cartographer_ros/scripts/install.sh --pkg cartographer_rviz
 
 # Copy the ros_entrypoint.sh

@@ -114,7 +114,8 @@ def main(argv):
 
   pose_graph_file = '{}.pbstream'.format(destination)
   if FLAGS.assets_launch_file:
-    pipeline_steps.create_assets(FLAGS.assets_launch_file, destination,
+    pipeline_steps.create_assets(FLAGS.launch_file_pkg,
+                                 FLAGS.assets_launch_file, destination,
                                  pose_graph_file)
     pipeline_steps.copy_logs('assets_writer',
                              '{}/assets_writer.log'.format(scratch_dir))
