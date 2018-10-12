@@ -54,9 +54,10 @@ class BigQueryHelper(object):
         logging.error('Failure when inserting rows: %s', str(e))
 
 
-def store_in_bigquery(scratch_dir, experiment_id, job_uuid, bag_file,
+def store_in_bigquery(scratch_dir, experiment_id, job_uuid, bag_file, platform,
                       secret_json, creation_date, tags):
   """Stores result data into bigquery table(s).
+
   """
   relations_csv = '{}/{}.pbstream.relation_metrics.csv'.format(
       scratch_dir, bag_file)
@@ -76,6 +77,7 @@ def store_in_bigquery(scratch_dir, experiment_id, job_uuid, bag_file,
     r['job_uuid'] = job_uuid
     r['datetime'] = creation_date
     r['bag_file'] = bag_file
+    r['platform'] = platform
     if tags:
       r['tags'] = tags
 

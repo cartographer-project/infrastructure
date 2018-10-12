@@ -51,6 +51,8 @@ flags.DEFINE_string('ground_truth_relations', None,
                     'Cloud storage path to ground truth relations file.')
 flags.DEFINE_string('output_bucket', 'cartographer-evaluation-artifacts',
                     'Cloud storage bucket for output artifacts.')
+flags.DEFINE_string('platform', 'Unknown',
+                    'The platform that was used to record this dataset.')
 flags.DEFINE_string('launch_file', None,
                     'launch file from `flags.launch_file_pkg` to use.')
 flags.DEFINE_string('launch_file_pkg', 'cartographer_ros',
@@ -134,7 +136,8 @@ def main(argv):
 
     logging.info('Storing results to bigquery')
     store_in_bigquery(scratch_dir, FLAGS.experiment_id, FLAGS.uuid, bag_file,
-                      FLAGS.secret, FLAGS.creation_date, FLAGS.tags)
+                      FLAGS.platform, FLAGS.secret, FLAGS.creation_date,
+                      FLAGS.tags)
 
   destination_path = '{}/{}'.format(FLAGS.experiment_id, FLAGS.uuid)
   upload_artifacts(scratch_dir, FLAGS.output_bucket, destination_path,
