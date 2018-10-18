@@ -16,7 +16,7 @@
 set -o errexit
 set -o verbose
 
-BASE=eu.gcr.io/robco-klose
+BASE=eu.gcr.io/cartographer-141408
 TAG=${BASE}/evaluation_base
 
 docker build -t ${TAG} -f evaluation_base.Dockerfile .

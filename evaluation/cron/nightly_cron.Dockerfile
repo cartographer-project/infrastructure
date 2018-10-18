@@ -42,7 +42,7 @@ RUN curl https://sdk.cloud.google.com | bash && \
     pip install --upgrade google-cloud-bigquery && \
     pip install --upgrade google-cloud-storage
 
-RUN gcloud config set project robco-klose
+RUN gcloud config set project cartographer-141408
 
 WORKDIR /
 

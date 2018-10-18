@@ -38,7 +38,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string(
     "dataset_list", None,
     "CSV file containing list of datasets with configuration to process.")
-flags.DEFINE_string("docker_registry", "eu.gcr.io/robco-klose",
+flags.DEFINE_string("docker_registry", "eu.gcr.io/cartographer-141408",
                     "Url of docker registry to pull the docker image from.")
 flags.DEFINE_string(
     "docker_image", None,

@@ -1,6 +1,6 @@
 # Kubernetes based Evaluation Pipeline
 This folder contains files needed to setup a kubernetes based evaluation
-pipeleline on GCP.
+pipeline on GCP.
 
 ## Source tree overview
 
@@ -15,3 +15,7 @@ pipeleline on GCP.
 | **`Dockerfile`**                 | The docker image that will be used for each evaluation pod.               |
 | **`update_eval_base_image.sh`**  | Helper script for updating the base image (build, tag and upload).        |
 | **`update_eval_image.sh`**       | Helper script for updating the evaluation image.                          |
+
+## Cron job setup
+
+* Enable Cloud Build API on GCP

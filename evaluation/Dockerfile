@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # TODO(klose): Change to cartographer project once setup.
-FROM eu.gcr.io/robco-klose/evaluation_base:latest
+FROM eu.gcr.io/cartographer-141408/evaluation_base:latest
 
 ARG cartographer_fork=googlecartographer
 ARG cartographer_branch=master

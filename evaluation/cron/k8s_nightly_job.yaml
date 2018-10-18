@@ -10,7 +10,7 @@ spec:
         secret:
           secretName: evaluation-secret
       containers:
-      - image: eu.gcr.io/robco-klose/nightly_cron:latest
+      - image: eu.gcr.io/cartographer-141408/nightly_cron:latest
         name: nightly-evaluation
         volumeMounts:
         - name: evaluation-secret
