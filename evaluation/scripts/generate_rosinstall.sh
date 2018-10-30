@@ -17,4 +17,5 @@
 echo "- git: {local-name: cartographer, uri: 'https://github.com/${CARTOGRAPHER_FORK}/cartographer.git', version: '${CARTOGRAPHER_BRANCH}'}" > $HOME/cartographer_ros.rosinstall &&
 echo "- git: {local-name: cartographer_ros, uri: 'https://github.com/${CARTOGRAPHER_ROS_FORK}/cartographer_ros.git', version: '${CARTOGRAPHER_ROS_BRANCH}'}" >> $HOME/cartographer_ros.rosinstall &&
 echo "- git: {local-name: cartographer_fetch, uri: 'https://github.com/googlecartographer/cartographer_fetch.git', version: 'master'}" >> $HOME/cartographer_ros.rosinstall &&
+echo "- git: {local-name: cartographer_mir, uri: 'https://github.com/googlecartographer/cartographer_mir.git', version: 'master'}" >> $HOME/cartographer_ros.rosinstall &&
 echo "- git: {local-name: ceres-solver, uri: 'https://ceres-solver.googlesource.com/ceres-solver.git', version: '1.13.0'}" >> $HOME/cartographer_ros.rosinstall

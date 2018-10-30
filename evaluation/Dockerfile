@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(klose): Change to cartographer project once setup.
 FROM eu.gcr.io/cartographer-141408/evaluation_base:latest
 
 ARG cartographer_fork=googlecartographer

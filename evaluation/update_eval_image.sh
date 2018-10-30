@@ -16,13 +16,14 @@
 set -o errexit
 set -o verbose
 
-BASE=eu.gcr.io/cartographer-141408
-TAG=${BASE}/eval_nightly
+docker_registry=eu.gcr.io/cartographer-141408
+image_tag=eval_nightly
 
-docker build -t ${TAG} -f Dockerfile \
-  --build-arg cartographer_fork=googlecartographer \
-  --build-arg cartographer_branch=master \
-  --build-arg cartographer_ros_fork=googlecartographer \
-  --build-arg cartographer_ros_branch=master \
-  .
-docker push ${TAG}
+python build_and_upload_image.py \
+  --cartographer_fork=googlecartographer \
+  --cartographer_branch=master \
+  --cartographer_ros_fork=googlecartographer \
+  --cartographer_ros_branch=master \
+  --docker_registry=${docker_registry} \
+  --dockerfile_path=. \
+  --tag=${image_tag}

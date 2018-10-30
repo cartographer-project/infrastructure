@@ -128,7 +128,8 @@ class KubernetesJobCreator(object):
       config_local = "/tmp/config.lua"
       cfg_gen.write_config_file(base_config_lines, cfg_dict, config_local)
 
-      dst_bucket = "cartographer-evaluation-artifacts"
+      # TODO(klose): make this a parameter.
+      dst_bucket = "cartographer-eval-artifacts"
       dst_path = "{}/config_{}.lua".format(experiment_id, sweep_idx)
       cfg_gen.upload_to_cloud_bucket(config_local, dst_bucket, dst_path,
                                      self.service_account_secret)

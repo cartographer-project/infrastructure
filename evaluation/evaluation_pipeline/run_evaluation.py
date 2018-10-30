@@ -49,7 +49,7 @@ flags.DEFINE_string(
     'Cloud storage path to dataset to process (via gs://... ).')
 flags.DEFINE_string('ground_truth_relations', None,
                     'Cloud storage path to ground truth relations file.')
-flags.DEFINE_string('output_bucket', 'cartographer-evaluation-artifacts',
+flags.DEFINE_string('output_bucket', 'cartographer-eval-artifacts',
                     'Cloud storage bucket for output artifacts.')
 flags.DEFINE_string('platform', 'Unknown',
                     'The platform that was used to record this dataset.')

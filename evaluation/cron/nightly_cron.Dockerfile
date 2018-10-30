@@ -27,8 +27,8 @@ ENV CLOUDSDK_CORE_DISABLE_PROMPTS 1
 ENV PATH /opt/google-cloud-sdk/bin:$PATH
 
 # Cluster information:
-ENV CLUSTER carto-evaluation
-ENV CLUSTER_ZONE us-west1-a
+ENV CLUSTER cartogragpher-evaluation
+ENV CLUSTER_ZONE europe-west3-
 
 
 # Install Google Cloud Components
